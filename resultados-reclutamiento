@@ -1,0 +1,1396 @@
+<!-- 💡💡💡P.E.S.T.A.Ñ.A.S -->
+<!-- 💡💡💡P.E.S.T.A.Ñ.A.S -->
+<!-- 💡💡💡P.E.S.T.A.Ñ.A.S -->
+<!-- Pestañas -->
+<div style="margin-bottom: 5px;">
+  <button onclick="mostrarTab('resultados')" id="btnResultados" style="padding: 10px 20px; font-size: 16px; border: none; background-color: #0066cc; color: white; border-radius: 6px 6px 0 0; cursor: pointer;">Reclutados</button>
+  <button onclick="mostrarTab('procedimiento')" id="btnProcedimiento" style="padding: 10px 20px; font-size: 16px; border: none; background-color: #ccc; color: #333; border-radius: 6px 6px 0 0; cursor: pointer;">En proceso</button>
+</div>
+
+
+<!-- 💡💡💡TÍTULO -->
+<!-- 💡💡💡TÍTULO -->
+<!-- 💡💡💡TÍTULO -->
+<div id="tabResultados" style="background:#dfd9d2; padding: 20px; border-radius: 15px 15px 15px 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+<h4>Lista de técnicos reclutados.</h4>
+<p>📥<a href="#" onclick="descargarTablaCSV()" style="display:inline-block; margin-bottom:10px; font-size:14px; color:#0066cc; text-decoration:underline; cursor:pointer;">
+  Descargar lista
+</a></p>
+
+<div id="leyendaConteo" style="
+  margin: 20px 0 30px 0;
+  padding: 18px 20px;
+  background: #f0f7ff;
+  border-left: 4px solid #1976d2;
+  color: #333;
+  font-size: 14px;
+  font-weight: 150;
+  border-radius: 8px;
+">
+</div>
+
+
+<!-- 💡💡💡FILTROS -->
+<!-- 💡💡💡FILTROS -->
+<!-- 💡💡💡FILTROS -->
+<!-- FILTROS ESCRITORIO -->
+<div class="filtros-desktop" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+  <div class="filtro-item" style="flex: 0 0 30%;">
+    <label for="filtroNombre">Nombre:</label>
+    <input type="text" id="filtroNombre" placeholder="Buscar por nombre">
+  </div>
+  <div class="filtro-item" style="flex: 1;">
+    <label for="filtroPlaza">Plaza:</label>
+    <select id="filtroPlaza"><option value="TODAS">Todas</option></select>
+  </div>
+  <div class="filtro-item" style="flex: 1;">
+    <label for="filtroDesde">Desde:</label>
+    <input type="date" id="filtroDesde">
+  </div>
+  <div class="filtro-item" style="flex: 1;">
+    <label for="filtroHasta">Hasta:</label>
+    <input type="date" id="filtroHasta">
+  </div>
+  <div class="filtro-item" style="flex: 1;">
+    <label for="filtroEntrevistador">Entrevistador:</label>
+    <select id="filtroEntrevistador"><option value="TODOS">Todos</option></select>
+  </div>
+  <div class="filtro-item" style="flex: 1;">
+  <label for="filtroExperiencia">Experiencia:</label>
+  <select id="filtroExperiencia">
+  <option value="TODOS">Todos</option>
+  <option value="CON">Con experiencia</option>
+  <option value="SIN">Sin experiencia</option>
+  </select>
+
+</div>
+  <div class="filtro-item" style="flex: 1;">
+    <label for="filtroForaneo">¿Foráneo?:</label>
+    <select id="filtroForaneo">
+      <option value="TODOS">Todos</option>
+      <option value="Sí">Sí</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+</div>
+
+
+<!-- 💡💡💡TABLA DE DATOS -->
+<!-- 💡💡💡TABLA DE DATOS -->
+<!-- 💡💡💡TABLA DE DATOS -->
+<!-- Tabla -->
+<!-- Tabla -->
+<div class="tabla-wrapper">
+  <table id="tablaDatos"></table>
+</div>
+
+<!-- Paginación -->
+<div id="paginacionResultados" style="text-align:center; margin-top:20px;"></div>
+
+
+<!-- 💡💡💡MODAL PRINCIPAL -->
+<!-- 💡💡💡MODAL PRINCIPAL -->
+<!-- 💡💡💡MODAL PRINCIPAL -->
+<!-- 💡 MODAL DETALLE -->
+<div id="modalDetalle" class="modal-overlay">
+  <div class="modal-contenido">
+    <button onclick="cerrarModal()" class="btn-cerrar-modal">✖️</button>
+    <div id="modalTitulo" class="modal-titulo"></div>
+    <div id="detalleTexto" class="modal-contenido-detalle"></div>
+  </div>
+</div>
+
+
+<!-- 💡💡💡SCRIPT PRINCIPAL -->
+<!-- 💡💡💡SCRIPT PRINCIPAL -->
+<!-- 💡💡💡SCRIPT PRINCIPAL -->
+<!-- Script -->
+<script>
+const urlPrincipal = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRATLnfEqDQVKTh7tMUOEzTMC8D_fDlmMseYkX5BdbIjllg4Kl28dTbC5paO9nZydVSeJFUzVr-PtQs/pub?gid=863776691&single=true&output=csv';
+const tabla = document.getElementById('tablaDatos');
+const selects = {
+  plaza: document.querySelectorAll('#filtroPlaza, .filtroPlaza'),
+  entrevistador: document.querySelectorAll('#filtroEntrevistador, .filtroEntrevistador'),
+  experiencia: document.querySelectorAll('#filtroExperiencia, .filtroExperiencia'),
+  foraneo: document.querySelectorAll('#filtroForaneo, .filtroForaneo')
+};
+
+
+// 💡💡💡FUNCIONES DE FILTRO
+// 💡💡💡FUNCIONES DE FILTRO
+// 💡💡💡FUNCIONES DE FILTRO
+const getValorFecha = (selector) => {
+  const visibles = Array.from(document.querySelectorAll(selector)).filter(el => el.offsetParent !== null);
+  return visibles.length ? visibles[0].value : '';
+};
+
+let paginaActualRes = 1;
+const registrosPorPaginaRes = 50;
+let encabezados = [];
+let cuerpo = [];
+let mapaSecundario = {};
+
+function toggleFiltros() {
+  const panel = document.getElementById('contenedorFiltros');
+  panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+}
+
+
+// 💡💡💡ABREVIATURA
+// 💡💡💡ABREVIATURA
+// 💡💡💡ABREVIATURA
+function abreviarPlaza(plaza) {
+  const p = plaza.toLowerCase();
+  if (p.includes('tijuana')) return 'TIJ';
+  if (p.includes('ciudad juárez') || p.includes('cd juárez') || p.includes('cd. juárez') || p.includes('cdjuarez')) return 'CDJZ';
+  if (p.includes('chihuahua')) return 'CHIH';
+  if (p.includes('monterrey')) return 'MTY';
+  if (p.includes('guadalajara')) return 'GDL';
+  if (p.includes('cdmx') || p.includes('azcapotzalco') || p.includes('polanco') || p.includes('santa fe') || p.includes('santafé') || p.includes('condesa')) return 'CDMX';
+  if (p.includes('edomex') || p.includes('tecamac')) return 'EDOMEX';
+  if (p.includes('mérida') || p.includes('merida')) return 'MÉR';
+  return plaza;
+}
+
+
+
+function aplicarFiltros() {
+  function valorActivo(lista) {
+    for (let s of lista) {
+      if (s.offsetParent !== null) return s.value;
+    }
+    return lista[0].value;
+  }
+
+  const plazaVal = valorActivo(selects.plaza);
+  const entrevistadorVal = valorActivo(selects.entrevistador);
+  const experienciaVal = valorActivo(selects.experiencia);
+  const foraneoVal = valorActivo(selects.foraneo);
+  const desdeVal = getValorFecha('#filtroDesde, .filtroDesde');
+  const hastaVal = getValorFecha('#filtroHasta, .filtroHasta');
+  const nombreVal = (() => {
+  const campos = document.querySelectorAll('#filtroNombre, .filtroNombre');
+  for (let campo of campos) {
+    if (campo.offsetParent !== null) return campo.value.trim().toLowerCase();
+  }
+  return '';
+})();
+
+
+  const filtrado = cuerpo.filter(f => {
+  const nombre = f[0]?.toLowerCase() || '';
+  const plaza = f[1];
+  const fechaRaw = f[3] || '';
+  const foraneo = (f[4] || '').trim().toLowerCase();
+  const entrevistador = f[5];
+
+    const nombreOK = !nombreVal || f.some(col => (col || '').toLowerCase().includes(nombreVal));
+    const plazaOK = plazaVal === 'TODAS' || plaza === plazaVal;
+    const entrevistadorOK = entrevistadorVal === 'TODOS' || entrevistador === entrevistadorVal;
+
+    const experiencia = (f[6] || '').trim().toLowerCase();
+let experienciaOK = true;
+
+if (experienciaVal === 'CON') {
+  experienciaOK = experiencia === 'meses' || experiencia === '1 a 2 años' || experiencia === 'más de 2 años';
+} else if (experienciaVal === 'SIN') {
+  experienciaOK = experiencia === 'sin experiencia';
+}
+
+
+
+
+    const foraneoOK = foraneoVal === 'TODOS' || foraneo === foraneoVal.toLowerCase();
+
+    let fechaOK = true;
+    try {
+      const fechaCol = new Date(fechaRaw.replace(/(\d{1,2}) de (\w+) de (\d{4})/, (match, d, m, y) => {
+        const meses = { ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11 };
+        const mes = m.slice(0,3).toLowerCase();
+        return `${y}-${(meses[mes]+1).toString().padStart(2,'0')}-${d.padStart(2,'0')}`;
+      }));
+
+      if (desdeVal) fechaOK = fechaCol >= new Date(desdeVal);
+      if (hastaVal && fechaOK) fechaOK = fechaCol <= new Date(hastaVal);
+    } catch (e) {
+      fechaOK = false;
+    }
+
+    return nombreOK && plazaOK && entrevistadorOK && experienciaOK && foraneoOK && fechaOK;
+  });
+
+  filtrado.sort((a, b) => {
+    const meses = { ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11 };
+    const parseFecha = str => {
+      const match = str.match(/(\d{1,2}) de (\w+) de (\d{4})/);
+      if (!match) return new Date(0);
+      const [, d, m, y] = match;
+      const mes = meses[m.slice(0,3).toLowerCase()] ?? 0;
+      return new Date(`${y}-${(mes+1).toString().padStart(2, '0')}-${d.padStart(2, '0')}`);
+    };
+    return parseFecha(b[3]) - parseFecha(a[3]);
+  });
+
+  // 💡💡💡 NUEVO: guardar y mostrar paginado
+  cuerpoFiltradoRes = filtrado;
+  paginaActualRes = 1;
+  renderTabla();
+}
+
+
+
+// 💡💡💡FUNCION DE MOSTRAR TABLA
+// 💡💡💡FUNCION DE MOSTRAR TABLA
+// 💡💡💡FUNCION DE MOSTRAR TABLA
+function renderTabla() {
+  const total = cuerpoFiltradoRes.length;
+  const inicio = (paginaActualRes - 1) * registrosPorPaginaRes;
+  const fin = inicio + registrosPorPaginaRes;
+  const paginaDatos = cuerpoFiltradoRes.slice(inicio, fin);
+
+  // Si no hay datos
+  if (paginaDatos.length === 0) {
+    tabla.innerHTML = '<tr><td colspan="100%">No hay datos disponibles</td></tr>';
+    return;
+  }
+
+  // Encabezado
+const thead = '<thead><tr>' + encabezados.map((h, i) => {
+  if (i === 7) return ''; // Oculta columna 8
+  const borde = i < encabezados.length - 1 ? 'border-right: 1px solid #b3cce8;' : '';
+  return `<th style="
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+    background-color: #0066cc;
+    ${borde}
+  ">${h}</th>`;
+}).join('') + '</tr></thead>';
+
+
+
+
+
+  // Cuerpo
+  const tbody = '<tbody>' + paginaDatos.map(fila => {
+  return '<tr>' + fila.map((dato, i) => {
+    if (i === 7) return ''; // Oculta columna 8
+    let valor = dato;
+
+    if (i === 1) {
+      const plazaAbrev = abreviarPlaza(dato);
+      return `<td style="padding:10px; border-top:1px solid #e0eaf5; font-size:14px; color:#009688; font-family:'Segoe UI', sans-serif;">${plazaAbrev}</td>`;
+    }
+
+    if (i === 0) {
+      const partes = valor.trim().split(' ');
+      const nombreDividido = window.innerWidth <= 600
+        ? `${partes[0] || ''}<br>${partes[1] || ''}`
+        : valor;
+      return `<td style="padding:10px; border-top:1px solid #e0eaf5; font-size:14px; font-family:'Segoe UI', sans-serif; color:#0066cc; text-decoration:underline; cursor:pointer;" onclick="abrirModalDetalle('${valor.replace(/'/g, "\\'")}')">${nombreDividido}</td>`;
+    }
+
+    return `<td style="padding:10px; border-top:1px solid #e0eaf5; font-size:14px; font-family:'Segoe UI', sans-serif; color:#333;">${valor}</td>`;
+  }).join('') + '</tr>';
+}).join('') + '</tbody>';
+
+
+  tabla.innerHTML = thead + tbody;
+
+  // Leyenda
+  const leyenda = document.getElementById("leyendaConteo");
+   if (leyenda) {
+   leyenda.innerHTML = `📋 Mostrando <strong>${cuerpoFiltradoRes.length}</strong> técnicos que cumplen los requisitos y aceptan las condiciones`;
+  }
+
+
+
+
+  // Paginación visual
+  const paginacionDiv = document.getElementById("paginacionResultados");
+  if (paginacionDiv) {
+    paginacionDiv.innerHTML = renderPaginacionRes(total, paginaActualRes, registrosPorPaginaRes);
+  }
+}
+
+
+
+// 💡💡💡FETCH -->
+// 💡💡💡FETCH -->
+// 💡💡💡FETCH -->
+fetch(urlPrincipal)
+  .then(res => res.text())
+  .then(csvPrincipal => {
+    const filasPrincipal = csvPrincipal.trim().split('\n').map(f => f.split(','));
+    encabezados = filasPrincipal[0];
+    cuerpo = filasPrincipal.slice(1);
+
+    const datos = {
+      plaza: [...new Set(cuerpo.map(f => f[1]?.trim()))].sort(),
+      entrevistador: [...new Set(cuerpo.map(f => f[5]?.trim()))].sort(),
+      experiencia: ['CON', 'SIN'], // ya no se llena dinámicamente
+      foraneo: [...new Set(cuerpo.map(f => (f[4] || '').trim().toLowerCase()))]
+        .filter(v => v === 'sí' || v === 'no')
+        .map(v => v.charAt(0).toUpperCase() + v.slice(1))
+    };
+
+    Object.keys(selects).forEach(key => {
+      selects[key].forEach(select => {
+        while (select.options.length > 1) {
+          select.remove(1);
+        }
+
+        datos[key]?.forEach(val => {
+          const o = document.createElement('option');
+          o.value = val;
+          o.textContent = val;
+          select.appendChild(o);
+        });
+
+        select.onchange = aplicarFiltros;
+      });
+    });
+
+    document.querySelectorAll('#filtroDesde, .filtroDesde').forEach(el => el.onchange = aplicarFiltros);
+    document.querySelectorAll('#filtroHasta, .filtroHasta').forEach(el => el.onchange = aplicarFiltros);
+
+    // Filtro por nombre (desktop y móvil)
+    document.querySelectorAll('#filtroNombre, .filtroNombre').forEach(input => {
+    input.addEventListener('input', aplicarFiltros);
+    });
+
+
+    aplicarFiltros();
+  });
+
+function renderPaginacionRes(total, pagina, tamano) {
+  const totalPaginas = Math.ceil(total / tamano);
+  if (totalPaginas <= 1) return '';
+
+  let html = '';
+  for (let i = 1; i <= totalPaginas; i++) {
+    html += `<button onclick="irAPaginaRes(${i})"
+                style="margin: 4px; padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; background:${i === pagina ? '#0066cc' : '#fff'}; color:${i === pagina ? '#fff' : '#333'}; cursor:pointer;">
+              ${i}
+            </button>`;
+  }
+
+  return `<div style="text-align:center; margin-top:20px;">${html}</div>`;
+}
+
+function irAPaginaRes(num) {
+  paginaActualRes = num;
+  renderTabla();
+}
+
+
+
+
+<!-- 💡💡💡FUNCION MODAL-->
+<!-- 💡💡💡FUNCION MODAL-->
+<!-- 💡💡💡FUNCION MODAL-->
+let datosDetalle = [];
+
+fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRATLnfEqDQVKTh7tMUOEzTMC8D_fDlmMseYkX5BdbIjllg4Kl28dTbC5paO9nZydVSeJFUzVr-PtQs/pub?gid=0&single=true&output=csv")
+  .then(res => res.text())
+  .then(csv => {
+    const rows = csv.trim().split('\n').map(r => r.split(','));
+    datosDetalle = rows.slice(1); // quita encabezado
+  });
+
+function abrirModalDetalle(nombreBuscado) {
+  const fila = datosDetalle.find(row => row[0]?.trim().toLowerCase() === nombreBuscado.trim().toLowerCase());
+
+  // Título del modal
+  document.getElementById("modalTitulo").textContent = nombreBuscado;
+
+  if (!fila) {
+    document.getElementById("detalleTexto").innerHTML = `<strong>No se encontraron datos para:</strong> ${nombreBuscado}`;
+  } else {
+    document.getElementById("detalleTexto").innerHTML = `
+
+  <!-- Acordeón 1: Información del técnico -->
+  <div style="border:1px solid #ccc; border-radius:8px; margin-bottom:15px;">
+    <button onclick="toggleAcordeonResultados('acordeon1')" style="width:100%; background:#f0f0f0; padding:10px 15px; text-align:left; border:none; font-size:16px; font-weight:bold; cursor:pointer;">
+      Información del técnico <span id="iconoAcordeon1" style="float:right;">🔽</span>
+    </button>
+    <div id="acordeon1" style="display:block; padding:15px;">
+    <div style="margin-bottom:15px; background:#d6d6d6; padding:10px 15px; border-radius:6px; font-size:14px; color:#333;">
+      <strong>💡Detalles:</strong><br>📱 Da clic en el teléfono del técnico parae enviarle un WhatsApp. Navega por las pestañas para ver información del técnico.
+    </div>
+       <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start;">
+         <div style="flex:1; min-width:220px;">
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>EMAIL:</strong> ${fila[1]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>TELÉFONO:</strong> <a href="https://wa.me/52${(fila[2] || '').replace(/\D/g, '')}" target="_blank" style="color:#007bff; text-decoration:underline;">${fila[2]}</a></p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>PLAZA:</strong> ${fila[3]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>DOMICILIO:</strong> ${fila[27]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>EXPERIENCIA:</strong> ${fila[28]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>EMPRESAS:</strong> ${fila[39]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>EDAD:</strong> ${fila[26]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>LICENCIA:</strong> ${fila[29]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>CURP:</strong> ${fila[30]}</p>
+          <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333;"><strong>FECHA ALTA:</strong> ${fila[12] || '<em>No disponible</em>'}</p>
+
+        </div>
+        
+<div style="flex:1; min-width:220px; text-align:center;">
+  ${
+    /\.(pdf)$/i.test(fila[15] || '')
+      ? `
+        <div style="border:1px solid #ccc; padding:15px; border-radius:10px; height:100%; box-sizing:border-box;">
+          <p style="font-size:14px; color:#555; margin-bottom:10px;">⚠️ Formato de foto no reconocido.</p>
+          <a href="${fila[15]}" target="_blank" style="display:inline-block; background:#eee; padding:10px 15px; border-radius:8px; text-decoration:none; color:#333; font-weight:bold;">
+            📄 Descargar PDF
+          </a>
+        </div>
+      `
+      : `<img src="${fila[15]}" alt="Foto del candidato" style="max-width:100%; border-radius:10px;">`
+  }
+</div>
+       </div>
+      </div>
+    </div>
+  </div>
+
+ <!-- Acordeón 2: Aptitudes -->
+<div style="border:1px solid #ccc; border-radius:8px; margin-bottom:15px;">
+  <button onclick="toggleAcordeonResultados('acordeon2')" style="width:100%; background:#e0f7fa; padding:10px 15px; text-align:left; border:none; font-size:16px; font-weight:bold; cursor:pointer;">
+    Aptitudes <span id="iconoAcordeon2" style="float:right;">▶️</span>
+  </button>
+  <div id="acordeon2" class="contenido" style="display:none; padding:15px;">
+
+    <div style="margin-bottom:15px; background:#e3f2fd; padding:10px 15px; border-radius:6px; font-size:14px; color:#333;">
+      <strong>🧠 Interpretación:</strong><br>
+      ${fila[16] || '<em>Sin interpretación disponible</em>'}
+    </div>
+
+    <div style="height:220px;">
+      <canvas id="graficaAptitudes" style="width:100%; height:100%;"></canvas>
+    </div>
+
+  </div>
+</div>
+
+
+  <!-- Acordeón 3: Dominio de herramientas -->
+  <div style="border:1px solid #ccc; border-radius:8px;">
+    <button onclick="toggleAcordeonResultados('acordeon3')" style="width:100%; background:#fff3e0; padding:10px 15px; text-align:left; border:none; font-size:16px; font-weight:bold; cursor:pointer;">
+      Detalle de aptitudes <span id="iconoAcordeon3" style="float:right;">▶️</span>
+
+    </button>
+    <div id="acordeon3" style="display:none; padding:15px; font-size:14px; font-family:'Segoe UI', sans-serif; color:#333;">
+      <div style="margin-bottom:15px; background:#ffffe5; padding:10px 15px; border-radius:6px; font-size:14px; color:#333;">
+      <strong>🔨Detalles:</strong><br>Dominio de habilidades clave para el puesto. (Capacita y acompaña a tus técnicos novatos).
+      </div>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Taladro:</strong> ${fila[17]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Escalera:</strong> ${fila[18]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Desarmador:</strong> ${fila[19]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Pinzas:</strong> ${fila[20]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Multímetro:</strong> ${fila[21]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>Cableado:</strong> ${fila[22]}</p>
+      <p style="font-size:16px; font-family:'Segoe UI', sans-serif; color:#333";><strong>FTTH:</strong> ${fila[23]}</p>
+    </div>
+
+<!-- Acordeón 4: Documentación -->
+<div style="border:1px solid #ccc; border-radius:8px; margin-top:15px;">
+  <button onclick="toggleAcordeonResultados('acordeon4')" style="width:100%; background:#ede7f6; padding:10px 15px; text-align:left; border:none; font-size:16px; font-weight:bold; cursor:pointer;">
+    Documentación TotalPlay <span id="iconoAcordeon4" style="float:right;">▶️</span>
+  </button>
+  <div id="acordeon4" style="display:none; padding:15px; ">
+    <div style="margin-bottom:15px; background:#f3e6f9; padding:10px 15px; font-size:14px; font-family:'Segoe UI', sans-serif; color:#333;">
+      <strong>📃Detalles:</strong><br>Da clic para descargar los documentos de ${nombreBuscado}.
+      </div>
+    <ul style="padding-left: 20px; line-height: 2; font-size:16px; font-family:'Segoe UI', sans-serif; color:#333;">
+      <li><a href="${fila[15] || '#'}" target="_blank" download="${nombreBuscado}_Foto.jpg" style="color:#0066cc; text-decoration:underline;">📷 Foto candidato</a></li>
+      <li><a href="${fila[31] || '#'}" target="_blank" download="${nombreBuscado}_INE_Frente.jpg" style="color:#0066cc; text-decoration:underline;">📄 INE frente</a></li>
+      <li><a href="${fila[32] || '#'}" target="_blank" download="${nombreBuscado}_INE_Reverso.jpg" style="color:#0066cc; text-decoration:underline;">📄 INE reverso</a></li>
+      <li><a href="${fila[33] || '#'}" target="_blank" download="${nombreBuscado}_CURP.pdf" style="color:#0066cc; text-decoration:underline;">📄 CURP</a></li>
+      <li><a href="${fila[34] || '#'}" target="_blank" download="${nombreBuscado}_Licencia.pdf" style="color:#0066cc; text-decoration:underline;">📄 Licencia</a></li>
+      <li><a href="${fila[35] || '#'}" target="_blank" download="${nombreBuscado}_Constancia_Fiscal.pdf" style="color:#0066cc; text-decoration:underline;">📄 Constancia fiscal</a></li>
+      <li><a href="${fila[36] || '#'}" target="_blank" download="${nombreBuscado}_Comprobante_Domicilio.pdf" style="color:#0066cc; text-decoration:underline;">📄 Comprobante domicilio</a></li>
+      <li><a href="${fila[37] || '#'}" target="_blank" download="${nombreBuscado}_Estado_Cuenta.pdf" style="color:#0066cc; text-decoration:underline;">📄 Estado de cuenta</a></li>
+      <li><a href="${fila[38] || '#'}" target="_blank" download="${nombreBuscado}_Carta_Informativa.pdf" style="color:#0066cc; text-decoration:underline;">📄 Carta informativa</a></li>
+    </ul>
+  </div>
+</div>
+  
+</div>
+`;
+
+<!-- 📊📊📊GRÁFICAS -->
+<!-- 📊📊📊GRÁFICAS -->
+<!-- 📊📊📊GRÁFICAS -->
+setTimeout(() => {
+  const ctx = document.getElementById('graficaAptitudes').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Integrabilidad', 'Herramientas', 'Habilidades blandas', 'Telecomunicaciones'],
+      datasets: [{
+        label: 'Evaluación',
+        data: [
+          parseFloat(fila[7] || 0),
+          parseFloat(fila[8] || 0),
+          parseFloat(fila[9] || 0),
+          parseFloat(fila[10] || 0)
+        ],
+        backgroundColor: ['#0d47a1', '#1976d2', '#42a5f5', '#90caf9'],
+        borderRadius: 10
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animations: {
+  x: {
+    type: 'number',
+    easing: 'linear',
+    duration: 800,
+    from: 0,
+    delay: function(context) {
+      return context.dataIndex * 000;
+    }
+  }
+},
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            stepSize: 20
+          }
+        }
+      },
+      plugins: {
+  legend: {
+    display: false
+  },
+  datalabels: {
+    anchor: 'end',
+    align: 'right',
+    formatter: value => value + '%',
+    color: '#444', // gris oscuro
+    font: {
+      weight: 'normal', // sin negritas
+      size: 12
+    }
+  }
+}
+    },
+    plugins: [ChartDataLabels]
+  });
+}, 50);
+}
+
+  document.getElementById("modalDetalle").style.display = "flex";
+}
+
+function cerrarModal() {
+  document.getElementById("modalDetalle").style.display = "none";
+}
+
+function toggleAcordeonResultados(id) {
+  const acordeones = ['acordeon1', 'acordeon2', 'acordeon3', 'acordeon4'];
+  const iconos = {
+    acordeon1: 'iconoAcordeon1',
+    acordeon2: 'iconoAcordeon2',
+    acordeon3: 'iconoAcordeon3',
+    acordeon4: 'iconoAcordeon4'
+  };
+
+  acordeones.forEach(acordeonId => {
+    const contenido = document.getElementById(acordeonId);
+    const icono = document.getElementById(iconos[acordeonId]);
+
+    if (acordeonId === id) {
+      const yaVisible = contenido.style.display === 'block';
+      contenido.style.display = yaVisible ? 'none' : 'block';
+      if (icono) icono.textContent = yaVisible ? '▶️' : '🔽';
+    } else {
+      contenido.style.display = 'none';
+      if (icono) icono.textContent = '▶️';
+    }
+  });
+}
+
+
+
+<!-- 💡💡💡FUNCION DE MOSTRAR PESTAÑA -->
+<!-- 💡💡💡FUNCION DE MOSTRAR PESTAÑA -->
+<!-- 💡💡💡FUNCION DE MOSTRAR PESTAÑA -->
+function mostrarTab(tab) {
+  const resultados = document.getElementById('tabResultados');
+  const procedimiento = document.getElementById('tabProcedimiento');
+  const btnResultados = document.getElementById('btnResultados');
+  const btnProcedimiento = document.getElementById('btnProcedimiento');
+
+  if (tab === 'resultados') {
+    resultados.style.display = 'block';
+    procedimiento.style.display = 'none';
+    btnResultados.style.backgroundColor = '#0066cc';
+    btnResultados.style.color = 'white';
+    btnProcedimiento.style.backgroundColor = '#ccc';
+    btnProcedimiento.style.color = '#333';
+  } else {
+    resultados.style.display = 'none';
+    procedimiento.style.display = 'block';
+    btnResultados.style.backgroundColor = '#ccc';
+    btnResultados.style.color = '#333';
+    btnProcedimiento.style.backgroundColor = '#0066cc';
+    btnProcedimiento.style.color = 'white';
+  }
+}
+
+// Cerrar modal al hacer clic fuera del contenido
+document.getElementById("modalDetalle").addEventListener("click", function(event) {
+  if (event.target === this) {
+    cerrarModal(); // Tu función actual que oculta el modal
+  }
+});
+
+function descargarTablaCSV() {
+  const tabla = document.getElementById('tablaDatos');
+  if (!tabla) return alert("⚠️ No se encontró la tabla.");
+
+  let csv = [];
+  const filas = tabla.querySelectorAll('tr');
+
+  filas.forEach(fila => {
+    const columnas = fila.querySelectorAll('th, td');
+    const filaCSV = Array.from(columnas).map(col => {
+      const texto = col.innerText.replace(/"/g, '""'); // escapa comillas dobles
+      return `"${texto}"`;
+    }).join(',');
+    csv.push(filaCSV);
+  });
+
+  const contenidoCSV = csv.join('\n');
+  const blob = new Blob([contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'reporte_tecnicos.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+</script>
+</div>
+
+
+<!-- 👀👀👀P.E.S.T.A.Ñ.A.2 -->
+<!-- 👀👀👀P.E.S.T.A.Ñ.A.2 -->
+<!-- 👀👀👀P.E.S.T.A.Ñ.A.2 -->
+<div id="tabProcedimiento" style="display:none; background:#dfd9d2; padding: 20px; border-radius: 15px 15px 15px 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+  
+<div id="modalDetalleProc" class="modal-overlay">
+  <div class="modal-contenido">
+    <button class="btn-cerrar-modal" onclick="document.getElementById('modalDetalleProc').style.display='none'">✖️</button>
+    <div id="modalTituloProc" class="modal-titulo"></div>
+    <div id="contenidoModalDetalleProc" class="modal-contenido-detalle"></div>
+  </div>
+</div>
+
+  
+<h4>Procedimiento</h4>
+<div id="leyendaProcedimiento" style="
+  display: flex;
+  flex-wrap: wrap;
+  gap: 25px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  margin: 20px 0 30px 0;
+  padding: 15px 20px;
+  background: #f0f7ff;
+  border-left: 4px solid #1976d2;  /* Línea azul fuerte a la izquierda */
+  border-radius: 6px;
+  color: #333;
+  font-size: 15px;
+  font-weight: 500;
+">
+  <div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+    <div style="font-size:18px; font-weight:bold;" id="countPostulados">--</div>
+    <div style="font-size:13px;">🙋‍♂️ Postulados</div>
+  </div>
+  <div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+    <div style="font-size:18px; font-weight:bold;" id="countExaminados">--</div>
+    <div style="font-size:13px;">🔎 Examinados</div>
+  </div>
+  <div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+    <div style="font-size:18px; font-weight:bold;" id="countEntrevistados">--</div>
+    <div style="font-size:13px;">👔 Entrevistados</div>
+  </div>
+  <div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+    <div style="font-size:18px; font-weight:bold;" id="countAceptados">--</div>
+    <div style="font-size:13px;">✅ Aceptados</div>
+  </div>
+  <div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+  <div style="font-size:18px; font-weight:bold;" id="countEnEspera">--</div>
+  <div style="font-size:13px;">⏰ En espera</div>
+</div>
+<div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+  <div style="font-size:18px; font-weight:bold;" id="countRechazoManual">--</div>
+  <div style="font-size:13px;">❌🖐 Rechazo manual</div>
+</div>
+<div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+  <div style="font-size:18px; font-weight:bold;" id="countRechazoAuto">--</div>
+  <div style="font-size:13px;">❌🤖 Rechazo auto.</div>
+</div>
+<div style="border-left: 2px solid #bbdefb; padding-left:12px; min-width:130px;">
+  <div style="font-size:18px; font-weight:bold;" id="countAbandono">--</div>
+  <div style="font-size:13px;">🏃‍♂️ Abandono</div>
+</div>
+
+</div>
+
+
+
+
+<!-- Filtros -->
+  <div id="filtrosProcedimiento" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; justify-content: space-between;">
+  
+  <div class="filtro-item" style="flex: 2 1 280px;">
+    <label for="filtroNombreProc" style="font-weight:bold; font-size:13px; color:#333;">Nombre:</label>
+    <input type="text" id="filtroNombreProc" placeholder="Buscar por nombre"
+      style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%; box-sizing:border-box;">
+  </div>
+
+  <div class="filtro-item" style="flex: 1 1 180px;">
+    <label for="filtroPlazaProc" style="font-weight:bold; font-size:13px; color:#333;">Plaza:</label>
+    <select id="filtroPlazaProc" style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%;"></select>
+  </div>
+
+  <div class="filtro-item" style="flex: 1 1 180px;">
+    <label for="filtroFechaInicioProc" style="font-weight:bold; font-size:13px; color:#333;">Desde:</label>
+    <input type="date" id="filtroFechaInicioProc" style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%;">
+  </div>
+
+  <div class="filtro-item" style="flex: 1 1 180px;">
+    <label for="filtroFechaFinProc" style="font-weight:bold; font-size:13px; color:#333;">Hasta:</label>
+    <input type="date" id="filtroFechaFinProc" style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%;">
+  </div>
+
+  <div class="filtro-item" style="flex: 1 1 180px;">
+    <label for="filtroStatusProc" style="font-weight:bold; font-size:13px; color:#333;">Status:</label>
+    <select id="filtroStatusProc" style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%;"></select>
+  </div>
+
+<div class="filtro-item" style="flex: 1 1 180px;">
+  <label for="filtroValidezProc" style="font-weight:bold; font-size:13px; color:#333;">Válido:</label>
+  <select id="filtroValidezProc" style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:100%;">
+    <option value="">Todos</option>
+    <option value="✅">✅En proceso</option>
+    <option value="⏰">⏰En espera</option>
+    <option value="❌🤖">❌🤖Descarte automático</option>
+    <option value="❌🖐">❌🖐Descarte manual</option>
+    <option value="🏃‍♂️">🏃‍♂️Abandono</option>
+  </select>
+</div>
+
+
+</div>
+
+<!-- 💡 MODAL CAMBIO DE STATUS -->
+<!-- 💡 MODAL CAMBIO DE STATUS -->
+<div id="modalCambioStatus" class="modal-overlay">
+  <div class="modal-contenido modal-sm">
+    <button class="btn-cerrar-modal" onclick="cerrarModalCambioStatus()">✖️</button>
+
+    <div class="modal-titulo">Selecciona nuevo estatus</div>
+
+    <div id="nombreCandidatoCambio" style="font-size:15px; font-weight:bold; color:#333; margin-bottom:12px;"></div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:20px;">
+      💡Para reactivar candidato continúa su conversación en WhatsApp.
+    </p>
+
+    <select id="selectNuevoStatus" onchange="actualizarMotivos()" style="padding:10px; font-size:16px; width:100%; border:1px solid #ccc; border-radius:6px;">
+      <option value="">-- Selecciona una opción --</option>
+      <option value="Descarte manual">Descarte manual</option>
+      <option value="Abandono">Abandono</option>
+    </select>
+
+    <div id="contenedorMotivo" style="margin-top:20px; display:none;">
+      <label for="selectMotivo" style="display:block; margin-bottom:8px; font-weight:bold;">Motivo específico:</label>
+      <select id="selectMotivo" style="padding:10px; font-size:16px; width:100%; border:1px solid #ccc; border-radius:6px;"></select>
+    </div>
+
+    <button id="btnGuardarStatus" onclick="guardarCambioStatus()" style="margin-top:25px; padding:10px 20px; background:#0066cc; color:white; border:none; border-radius:6px; font-size:16px; cursor:pointer;">
+      Guardar
+    </button>
+  </div>
+</div>
+
+
+
+
+
+
+  <!-- Tabla -->
+  <div id="tablaResumen" style="margin-top: 30px;"></div>
+
+  <!-- Script -->
+  <script>
+  
+function parseFechaTexto(texto) {
+  const meses = {
+    'ene': '01','feb': '02','mar': '03','abr': '04','may': '05','jun': '06',
+    'jul': '07','ago': '08','sep': '09','oct': '10','nov': '11','dic': '12'
+  };
+  const partes = texto.toLowerCase().split(' de ');
+  if (partes.length !== 3) return '';
+  const [dia, mesAbrev, anioCorto] = partes;
+  const diaNum = dia.padStart(2, '0');
+  const mesNum = meses[mesAbrev] || '00';
+  const anio = anioCorto.length === 2 ? '20' + anioCorto : anioCorto;
+  return `${anio}-${mesNum}-${diaNum}`;
+}
+
+let encabezados2 = [];
+let cuerpoOriginal2 = [];
+let indiceStatus2, indiceFecha2, indicePlaza2, indiceReclutador2;
+let paginaActualProc = 1;
+const registrosPorPaginaProc = 50;
+
+function obtenerPaginaProc(datos, pagina, tamano) {
+  const inicio = (pagina - 1) * tamano;
+  const fin = inicio + tamano;
+  return datos.slice(inicio, fin);
+}
+
+function renderPaginacionProc(total, pagina, tamano) {
+  const totalPaginas = Math.ceil(total / tamano);
+  if (totalPaginas <= 1) return '';
+
+  let html = '<div style="display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-top:20px;">';
+
+  // Flecha « Anterior
+  if (pagina > 1) {
+    html += `
+      <button onclick="irAPaginaProc(${pagina - 1})"
+        style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; background:white; color:#333; border-radius: 6px; cursor:pointer;">
+        « Anterior
+      </button>`;
+  }
+
+  // Botones de página
+  for (let i = 1; i <= totalPaginas; i++) {
+    html += `
+      <button onclick="irAPaginaProc(${i})"
+        style="
+          padding: 8px 14px;
+          font-size: 14px;
+          border: 1px solid ${i === pagina ? '#0066cc' : '#ccc'};
+          background-color: ${i === pagina ? '#0066cc' : 'white'};
+          color: ${i === pagina ? 'white' : '#333'};
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='${i === pagina ? '#005bb5' : '#f0f0f0'}'"
+        onmouseout="this.style.backgroundColor='${i === pagina ? '#0066cc' : 'white'}'"
+      >${i}</button>`;
+  }
+
+  // Flecha Siguiente »
+  if (pagina < totalPaginas) {
+    html += `
+      <button onclick="irAPaginaProc(${pagina + 1})"
+        style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; background:white; color:#333; border-radius: 6px; cursor:pointer;">
+        Siguiente »
+      </button>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+
+function irAPaginaProc(num) {
+  paginaActualProc = num;
+  renderTablaResumen();
+}
+
+
+function renderTablaResumen() {
+  const plazaVal = document.getElementById("filtroPlazaProc").value;
+  const statusVal = document.getElementById("filtroStatusProc").value;
+  const nombreVal = document.getElementById("filtroNombreProc")?.value.trim().toLowerCase() || '';
+  const fechaInicio = document.getElementById("filtroFechaInicioProc").value;
+  const fechaFin = document.getElementById("filtroFechaFinProc").value;
+  const validezVal = document.getElementById("filtroValidezProc").value;
+
+
+  let contadores = {
+  solicitud: 0,
+  aceptado: 0,
+  entrevistado: 0,
+  inscrito: 0,
+  espera: 0,
+  rechazoManual: 0,
+  rechazoAuto: 0,
+  abandono: 0
+  };
+
+
+    const cuerpoFiltrado = cuerpoOriginal2.filter(row => {
+    const status = (row[indiceStatus2] || '').trim().toLowerCase();
+    const fechaCruda = row[indiceFecha2]?.trim() || '';
+    const fechaISO = parseFechaTexto(fechaCruda);
+
+    const dentroDelRango = (!fechaInicio && !fechaFin) ||
+      (fechaISO && (!fechaInicio || fechaISO >= fechaInicio) && (!fechaFin || fechaISO <= fechaFin));
+
+    const plazaOK = !plazaVal || row[indicePlaza2]?.trim() === plazaVal;
+    const statusOK = !statusVal || row[indiceStatus2]?.trim() === statusVal;
+
+    const nombreOK = !nombreVal || row.some(col => (col || '').toLowerCase().includes(nombreVal));
+
+    const validezSimbolo = row[5]?.trim();
+    const validezOK = !validezVal || validezSimbolo === validezVal;
+
+    const cumpleFiltro = plazaOK && dentroDelRango && statusOK && nombreOK && validezOK;
+
+
+    if (cumpleFiltro) {
+      if (status === 'solicitud') contadores.solicitud++;
+      if (status === 'test') contadores.aceptado++;
+      if (status === 'entrevista') contadores.entrevistado++;
+      if (status === 'listo') contadores.inscrito++;
+      if (row[5]?.trim() === "⏰") contadores.espera++;
+      if (row[5]?.trim() === "❌🖐") contadores.rechazoManual++;
+      if (row[5]?.trim() === "❌🤖") contadores.rechazoAuto++;
+      if (row[5]?.trim() === "🏃‍♂️") contadores.abandono++;
+
+    }
+
+    return cumpleFiltro;
+  });
+
+  // 🔢 PAGINACIÓN: limitar a 100 por página
+  const cuerpoPaginado = obtenerPaginaProc(cuerpoFiltrado, paginaActualProc, registrosPorPaginaProc);
+
+  const tabla = `
+    <div class="tabla-wrapper">
+      <table id="tablaProcedimiento" style="width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.05); font-family:'Segoe UI', sans-serif;">
+        <thead>
+  <tr>
+    ${encabezados2.map((h, i) => {
+      const borde = i < encabezados2.length - 1 ? 'border-right: 1px solid #b3cce8;' : '';
+      return `<th style="
+        padding: 8px 10px;
+        text-align: left;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: 'Segoe UI', sans-serif;
+        color: white;
+        background-color: #0066cc;
+        ${borde}
+      ">${h}</th>`;
+    }).join('')}
+  </tr>
+</thead>
+
+<tbody>
+  ${cuerpoPaginado.map(row => `
+    <tr>
+      ${row.map((col, i) => {
+      if (i === 0) {
+        return `<td style="padding:10px; border-top:1px solid #eee; font-size:14px; color:#0073e6; cursor:pointer;" onclick="mostrarDetalleProc('${col.replace(/'/g, "\\'")}')">${col}</td>`;
+      }
+
+      if (i === 1) {
+        const numero = col.replace(/\D/g, ''); // elimina caracteres no numéricos
+        if (!numero) {
+          return `<td style="padding:10px; border-top:1px solid #eee; font-size:14px; color:#999;">Sin número</td>`;
+        }
+        return `<td style="padding:10px; border-top:1px solid #eee; font-size:14px;">
+          <a href="https://wa.me/52${numero}" target="_blank" style="color:green; text-decoration:none;">${col}</a>
+        </td>`;
+      }
+
+  if (i === 5) {
+    const textoAlt = row[8] || ''; // Columna I (índice 8)
+    return `<td style="text-align:center; padding:10px; border-top:1px solid #eee; font-size:14px; color:#333; cursor:pointer;" onclick="abrirModalCambioStatus('${row[0].replace(/'/g, "\\'")}', '${row[2].replace(/'/g, "\\'")}')" title="${textoAlt}">${col}</td>`;
+  }
+
+  return `<td style="padding:10px; border-top:1px solid #eee; font-size:14px; color:#333;">${col}</td>`;
+}).join('')}
+
+    </tr>
+  `).join('')}
+</tbody>
+
+      </table>
+    </div>
+    ${renderPaginacionProc(cuerpoFiltrado.length, paginaActualProc, registrosPorPaginaProc)}
+  `;
+
+    document.getElementById('tablaResumen').innerHTML = tabla;
+
+  // 4. Aquí es donde debes agregar el código para ocultar la columna 8 (índice 8)
+  document.querySelectorAll('#tablaProcedimiento th:nth-child(8), #tablaProcedimiento td:nth-child(8)')
+    .forEach(cell => {
+      cell.style.display = 'none';
+    });
+
+
+  const totalPostulantes = contadores.solicitud + contadores.aceptado + contadores.entrevistado + contadores.inscrito;
+  const totalAceptados = contadores.aceptado + contadores.entrevistado + contadores.inscrito;
+  const totalEntrevistados = contadores.entrevistado + contadores.inscrito;
+  const totalInscritos = contadores.inscrito;
+
+  document.getElementById('countPostulados').textContent = totalPostulantes;
+  document.getElementById('countExaminados').textContent = totalAceptados;
+  document.getElementById('countEntrevistados').textContent = totalEntrevistados;
+  document.getElementById('countAceptados').textContent = totalInscritos;
+  document.getElementById('countEnEspera').textContent = contadores.espera;
+  document.getElementById('countRechazoManual').textContent = contadores.rechazoManual;
+  document.getElementById('countRechazoAuto').textContent = contadores.rechazoAuto;
+  document.getElementById('countAbandono').textContent = contadores.abandono;
+}
+
+
+
+fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRATLnfEqDQVKTh7tMUOEzTMC8D_fDlmMseYkX5BdbIjllg4Kl28dTbC5paO9nZydVSeJFUzVr-PtQs/pub?gid=1941017353&single=true&output=csv")
+  .then(res => res.text())
+  .then(csv => {
+    const filas = csv.trim().split('\n').map(f => f.split(','));
+    encabezados2 = filas[0];
+    cuerpoOriginal2 = filas.slice(1);
+    indiceStatus2 = encabezados2.findIndex(h => h.toLowerCase().includes("status"));
+    indicePlaza2 = encabezados2.findIndex(h => h.toLowerCase().includes("plaza"));
+    indiceFecha2 = encabezados2.findIndex(h => h.toLowerCase().includes("último contacto"));
+
+    cuerpoOriginal2.sort((a, b) => {
+      const fechaA = parseFechaTexto(a[indiceFecha2]?.trim() || '');
+      const fechaB = parseFechaTexto(b[indiceFecha2]?.trim() || '');
+      return fechaB.localeCompare(fechaA);
+    });
+
+const llenarOpciones = (indice, selectId) => {
+  const set = new Set();
+  cuerpoOriginal2.forEach(row => {
+    const val = row[indice]?.trim();
+    if (val) set.add(val);
+  });
+
+  const select = document.getElementById(selectId);
+  select.innerHTML = ''; // Limpia opciones previas
+
+  const opcionTodos = document.createElement("option");
+  opcionTodos.value = '';
+  opcionTodos.textContent = 'Todos';
+  select.appendChild(opcionTodos);
+
+  [...set].sort().forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+};
+
+
+    llenarOpciones(indicePlaza2, "filtroPlazaProc");
+    llenarOpciones(indiceStatus2, "filtroStatusProc");
+
+["filtroPlazaProc", "filtroStatusProc", "filtroFechaInicioProc", "filtroFechaFinProc", "filtroValidezProc"]
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.onchange = renderTablaResumen;
+  });
+
+// Este sí puede estar aquí o afuera
+    document.getElementById("filtroNombreProc").addEventListener("input", renderTablaResumen);
+
+renderTablaResumen();
+
+// ← Agrega esto aquí:
+document.getElementById("filtroNombreProc").addEventListener("input", renderTablaResumen);
+
+  });
+
+
+// Variable única para esta pestaña
+let datosDetalle2 = [];
+
+fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRATLnfEqDQVKTh7tMUOEzTMC8D_fDlmMseYkX5BdbIjllg4Kl28dTbC5paO9nZydVSeJFUzVr-PtQs/pub?gid=883169815&single=true&output=csv")
+  .then(res => res.text())
+  .then(csv => {
+    const rows = csv.trim().split('\n').map(r => r.split(','));
+    datosDetalle2 = rows.slice(1); // sin encabezado
+  });
+
+function mostrarDetalleProc(nombreBuscado) {
+  const fila = datosDetalle2.find(row => row[0]?.trim().toLowerCase() === nombreBuscado.trim().toLowerCase());
+
+  // Título del modal
+  const tituloElem = document.getElementById("modalTituloProc");
+  tituloElem.innerHTML = nombreBuscado; // Limpia y reinicia como HTML
+
+// Buscar ALT desde cuerpoOriginal2 (columna 8) y símbolo válido (columna 5)
+const filaTabla = cuerpoOriginal2.find(row => row[0]?.trim().toLowerCase() === nombreBuscado.trim().toLowerCase());
+const textoALT = filaTabla?.[8]?.trim() || '';
+const simboloValidez = filaTabla?.[5]?.trim() || '';
+const fechaUltimoContacto = filaTabla?.[indiceFecha2] || '';
+
+// Mapa de etiquetas opcional
+const etiquetas = {
+  "✅": "En proceso",
+  "⏰": "En espera",
+  "❌🤖": "Descarte automático",
+  "❌🖐": "Descarte manual",
+  "🏃‍♂️": "Abandono"
+};
+
+if (textoALT || fechaUltimoContacto) {
+  const subtitulo = document.createElement("div");
+  subtitulo.style.fontSize = "13px";
+  subtitulo.style.color = "#666";
+  subtitulo.style.marginTop = "4px";
+
+  let texto = '';
+  if (simboloValidez) texto += `${simboloValidez} `;
+  if (textoALT) texto += textoALT;
+  if (fechaUltimoContacto) texto += `<br><span style="color:#999;">🕓 Último contacto: ${fechaUltimoContacto}</span>`;
+
+  subtitulo.innerHTML = texto;
+  tituloElem.appendChild(subtitulo);
+}
+
+
+
+  if (!fila) {
+    document.getElementById("contenidoModalDetalleProc").innerHTML = `<strong>No se encontraron datos adicionales para:</strong> ${nombreBuscado}`;
+  } else {
+    const edad = fila[5] || 'N/A';
+    const plaza = fila[3] || 'N/A';
+    const experiencia = fila[6] || 'N/A';
+    const veto = fila[7] || 'N/A';
+    const herramientas = fila[8] || 'N/A';
+    const alturas = fila[9] || 'N/A';
+    const manejo = fila[10] || 'N/A';
+    const licencia = fila[11] || 'N/A';
+
+    const claseEdad = (edad === "Menor de 18" || edad === "Más de 57") ? 'fondo-rojo' : '';
+    const clasePlaza = (plaza === "Ninguna😅") ? 'fondo-rojo' : '';
+    const claseVeto = (veto === "Sí") ? 'fondo-rojo' : '';
+    const claseHerramientas = (herramientas === "No las domino") ? 'fondo-rojo' : '';
+    const claseAlturas = (alturas === "Me incomodan las alturas") ? 'fondo-rojo' : '';
+    const claseManejo = (manejo === "No") ? 'fondo-rojo' : '';
+
+    document.getElementById("contenidoModalDetalleProc").innerHTML = `
+      <div style="text-align:center; margin-bottom: 20px;">
+        <p style="font-size: 14px; color: #666;">Da clic en la sección para ver detalles</p>
+      </div>
+
+      <div class="acordeon">
+        <h4 onclick="toggleAcordeon(this)">▼Solicitud</h4>
+        <div class="contenido" style="display:block;">
+          <strong>Edad:</strong> <span class="${claseEdad}">${edad}</span><br>
+          <strong>Plaza:</strong> <span class="${clasePlaza}">${plaza}</span><br>
+          <strong>Experiencia:</strong> ${experiencia}<br>
+          <strong>Veto:</strong> <span class="${claseVeto}">${veto}</span><br>
+          <strong>Herramientas:</strong> <span class="${claseHerramientas}">${herramientas}</span><br>
+          <strong>Alturas:</strong> <span class="${claseAlturas}">${alturas}</span><br>
+          <strong>Manejo:</strong> <span class="${claseManejo}">${manejo}</span><br>
+          <strong>Licencia:</strong> ${licencia}<br>
+        </div>
+      </div>
+
+      <div class="acordeon">
+        <h4 onclick="toggleAcordeon(this)">▼Test</h4>
+        <div class="contenido">
+          <strong>Resultado:</strong> ${fila[25] || 'N/A'}<br>
+          <strong>Taladro:</strong> ${fila[12] || 'N/A'}<br>
+          <strong>Escalera:</strong> ${fila[13] || 'N/A'}<br>
+          <strong>Desarmador:</strong> ${fila[14] || 'N/A'}<br>
+          <strong>Pinzas:</strong> ${fila[15] || 'N/A'}<br>
+          <strong>Multímetro:</strong> ${fila[16] || 'N/A'}<br>
+          <strong>Cableado:</strong> ${fila[17] || 'N/A'}<br>
+          <strong>FTTH:</strong> ${fila[18] || 'N/A'}<br>
+          <strong>Servicio al cliente:</strong> ${fila[19] || 'N/A'}<br>
+          <strong>Trabajo bajo presión:</strong> ${fila[20] || 'N/A'}<br>
+        </div>
+      </div>
+
+      <div class="acordeon">
+        <h4 onclick="toggleAcordeon(this)">▼Entrevista</h4>
+        <div class="contenido">
+          <strong>Integrabilidad:</strong> ${fila[21] || 'N/A'}<br>
+          <strong>Sueldo anterior:</strong> ${fila[22] || 'N/A'}<br>
+          <strong>¿Inicia lunes?:</strong> ${fila[23] || 'N/A'}<br>
+          <strong>Experiencia:</strong> ${fila[24] || 'N/A'}<br>
+        </div>
+      </div>
+    `;
+  }
+
+// Mostrar el modal unificado
+document.getElementById("modalDetalleProc").style.display = "flex";
+}
+
+function toggleAcordeon(element) {
+  element.parentElement.classList.toggle('abierto');
+}
+
+let candidatoSeleccionado = '';
+let correoSeleccionado = '';
+
+function abrirModalCambioStatus(nombre, correo) {
+  candidatoSeleccionado = nombre;
+  correoSeleccionado = correo;
+  document.getElementById('modalCambioStatus').style.display = 'flex';
+  document.getElementById('selectNuevoStatus').value = '';
+  document.getElementById('contenedorMotivo').style.display = 'none';
+  document.getElementById('selectMotivo').innerHTML = '';
+  document.getElementById('nombreCandidatoCambio').textContent = nombre; // 👈 Agregado
+}
+
+
+function cerrarModalCambioStatus() {
+  document.getElementById('modalCambioStatus').style.display = 'none';
+  document.getElementById('selectNuevoStatus').value = '';
+  document.getElementById('contenedorMotivo').style.display = 'none';
+  document.getElementById('selectMotivo').innerHTML = '';
+}
+
+function actualizarMotivos() {
+  const estatus = document.getElementById("selectNuevoStatus").value;
+  const selectMotivo = document.getElementById("selectMotivo");
+  const contenedor = document.getElementById("contenedorMotivo");
+
+  selectMotivo.innerHTML = ''; // Limpiar
+
+  let opciones = [];
+
+  if (estatus === "Descarte manual") {
+      opciones = [
+        "por falta de capacidad",
+        "por BlackList",
+        "por otros motivos"
+  ];
+  } else if (estatus === "Abandono") {
+    opciones = [
+      "por condiciones de capacitación",
+      "porque no hay plaza en su zona",
+      "por condiciones de trabajo",
+      "porque vive lejos de área",
+      "consiguió otro trabajo",
+      "por prestaciones",
+      "por sueldo",
+      "dejó en visto",
+      "otros motivos"
+    ];
+  }
+
+  if (opciones.length > 0) {
+    opciones.forEach(op => {
+      const option = document.createElement("option");
+      option.value = op;
+      option.textContent = op;
+      selectMotivo.appendChild(option);
+    });
+    contenedor.style.display = "block";
+  } else {
+    contenedor.style.display = "none";
+  }
+}
+
+function guardarCambioStatus() {
+  const nuevoStatus = document.getElementById('selectNuevoStatus').value;
+  const motivo = document.getElementById('selectMotivo')?.value || '';
+
+  if (!nuevoStatus) {
+    alert("Selecciona un nuevo estatus");
+    return;
+  }
+
+  if (!motivo) {
+    alert("Selecciona un motivo específico");
+    return;
+  }
+
+  const valorFinal = `${nuevoStatus} ${motivo}`;
+  const correoCandidato = correoSeleccionado?.trim() || '';
+
+  if (!correoCandidato) {
+    alert("⚠️ No se encontró el correo del candidato");
+    return;
+  }
+
+  console.log("📧 Enviando correo:", correoCandidato);
+  console.log("📌 Enviando status:", valorFinal);
+
+  // ✅ Selecciona solo el botón de guardar
+  const btnGuardar = document.getElementById('btnGuardarStatus');
+  const textoOriginal = btnGuardar.textContent;
+  const colorOriginal = btnGuardar.style.backgroundColor;
+  const cursorOriginal = btnGuardar.style.cursor;
+
+  // ✅ Cambios visuales mientras guarda
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = 'Guardando... espera';
+  btnGuardar.style.backgroundColor = '#999999';
+  btnGuardar.style.cursor = 'wait';
+
+  const url = 'https://script.google.com/macros/s/AKfycbyo16SeiaQ8Mvglo5_ekE6LELo8bd5Glbd1JKYUCfBRdF20ydea0gb5HwriTWckC-gq3A/exec';
+
+fetch(url, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: `email=${encodeURIComponent(correoCandidato)}&valor=${encodeURIComponent(valorFinal)}`
+})
+.then(res => res.text())
+.then(respuesta => {
+  alert(`✅ ${respuesta}\n\n🔄 Para ver los cambios reflejados en la tabla, actualiza la página manualmente.`);
+  
+  // 🔁 ACTUALIZAR STATUS EN MEMORIA
+  for (let i = 0; i < cuerpoOriginal2.length; i++) {
+    if ((cuerpoOriginal2[i][2] || '').trim().toLowerCase() === correoCandidato.toLowerCase()) {
+      cuerpoOriginal2[i][5] = nuevoStatus === "Abandono" ? "🏃‍♂️" : "❌🖐";
+      cuerpoOriginal2[i][8] = valorFinal; // Si la columna I (índice 8) muestra texto alternativo
+      break;
+    }
+  }
+
+  cerrarModalCambioStatus();
+  renderTablaResumen(); // 👈 vuelve a renderizar con datos ya actualizados
+})
+
+.catch(error => {
+  alert('❌ Error al guardar en Google Sheets');
+  console.error(error);
+})
+.finally(() => {
+  // ✅ Restaurar botón
+  btnGuardar.disabled = false;
+  btnGuardar.textContent = textoOriginal;
+  btnGuardar.style.backgroundColor = colorOriginal || '#0066cc';
+  btnGuardar.style.cursor = cursorOriginal || 'pointer';
+});
+}
+
+// Cerrar #modalDetalleProc al hacer clic fuera
+document.getElementById("modalDetalleProc").addEventListener("click", function(event) {
+  if (event.target === this) {
+    this.style.display = "none";
+  }
+});
+
+// Cerrar #modalCambioStatus al hacer clic fuera
+document.getElementById("modalCambioStatus").addEventListener("click", function(event) {
+  if (event.target === this) {
+    cerrarModalCambioStatus();
+  }
+});
+
+  </script>  
+</div>
